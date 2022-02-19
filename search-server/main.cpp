@@ -1,3 +1,4 @@
+// search_server_sprint2_v2.cpp
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -10,7 +11,6 @@
 using namespace std;
 
 /* Подставьте вашу реализацию класса SearchServer сюда */
-
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
 string ReadLine() {
@@ -339,7 +339,7 @@ void TestAddingDocumentContent() {
     const auto found_docs = server.FindTopDocuments("test"s);
     ASSERT_EQUAL(found_docs.size(), 1u);
     const auto found_docs2 = server.FindTopDocuments("abc"s);
-    ASSERT_EQUAL(found_docs2.size(), 0);
+    ASSERT_EQUAL(found_docs2.size(), 0u);
 }
 
 void TestExcludeMinusWordsFromAddedDocumentContent() {
@@ -349,7 +349,7 @@ void TestExcludeMinusWordsFromAddedDocumentContent() {
     const auto found_docs = server.FindTopDocuments("test"s);
     ASSERT_EQUAL(found_docs.size(), 1u);
     const auto found_docs2 = server.FindTopDocuments("-minus"s);
-    ASSERT_EQUAL_HINT(found_docs2.size(), 0, "Document with minus words must be excluded from documents"s);
+    ASSERT_EQUAL_HINT(found_docs2.size(), 0u, "Document with minus words must be excluded from documents"s);
 }
 
 void TestMatchingDocumentContent() {
@@ -361,13 +361,13 @@ void TestMatchingDocumentContent() {
     {
     const auto [words, _] = server.MatchDocument("пушистый кот -ухоженный"s, 0);
     ASSERT_EQUAL(words[0], "кот");
-    ASSERT_EQUAL(words.size(), 1);
+    ASSERT_EQUAL(words.size(), 1u);
     }
     {
     const auto [words, _] = server.MatchDocument("пушистый кот -ухоженный"s, 1);
     ASSERT_EQUAL(words[0], "кот");
     ASSERT_EQUAL(words[1], "пушистый");
-    ASSERT_EQUAL(words.size(), 2);
+    ASSERT_EQUAL(words.size(), 2u);
     }
     {
     const auto [words, _] = server.MatchDocument("пушистый кот -ухоженный"s, 2);
@@ -375,29 +375,29 @@ void TestMatchingDocumentContent() {
     }
 }
 
-void TestSortingDocumentRelevance() {
+void TestSortingDocumentByRelevance() {
     SearchServer server;
     server.SetStopWords("и в на"s);
     server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
     server.AddDocument(1, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {7, 2, 7});
     server.AddDocument(2, "ухоженный кот выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
     const auto found_docs = server.FindTopDocuments("кот"s);
-    ASSERT_EQUAL(found_docs.size(), 3);
+    ASSERT_EQUAL(found_docs.size(), 3u);
     ASSERT_EQUAL_HINT(found_docs[0].id, 1, "This document must have first position in sorted documents"s);
     ASSERT_EQUAL_HINT(found_docs[1].id, 0, "This document must have zero position in sorted documents"s);
     ASSERT_EQUAL_HINT(found_docs[2].id, 2, "This document must have second position in sorted documents"s);
 }
 
-void TestCalculateRatingDocument() {
+void TestCalculateDocumentRating() {
     SearchServer server;
     server.SetStopWords("и в на"s);
     server.AddDocument(0, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {7, 2, 7});
     const auto found_docs = server.FindTopDocuments("кот"s);
-    ASSERT_EQUAL(found_docs.size(), 1);
-    ASSERT_EQUAL_HINT(found_docs[0].rating, 5, "This document must have rating equals five"s);
+    ASSERT_EQUAL(found_docs.size(), 1u);
+    ASSERT_EQUAL_HINT(found_docs[0].rating, (7 + 2 + 7)/3, "This document must have rating equals five"s);
 }
 
-void TestPredicate() {
+void TestFindDocumentByPredicate() {
     SearchServer server;
     server.SetStopWords("и в на"s);
     server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
@@ -406,12 +406,12 @@ void TestPredicate() {
     server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
         
     const auto found_docs = server.FindTopDocuments("кот"s, [](int document_id, DocumentStatus status, int rating) { rating = rating; status = status; return document_id % 2 == 0; });
-    ASSERT_EQUAL(found_docs.size(), 2);
+    ASSERT_EQUAL(found_docs.size(), 2u);
     ASSERT_EQUAL(found_docs[0].id, 0);
     ASSERT_EQUAL(found_docs[1].id, 2);
 }
 
-void TestFindStatusDocument() {
+void TestFindDocumentByStatus() {
     SearchServer server;
     server.SetStopWords("и в на"s);
     server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
@@ -419,11 +419,18 @@ void TestFindStatusDocument() {
     server.AddDocument(2, "ухоженный кот выразительные глаза"s, DocumentStatus::IRRELEVANT, {5, -12, 2, 1});
     server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
     const auto found_docs = server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::IRRELEVANT);
-    ASSERT_EQUAL_HINT(found_docs.size(), 1, "It must be finding only one document with status IRRELEVANT"s);
+    ASSERT_EQUAL_HINT(found_docs.size(), 1u, "It must be finding only one document with status IRRELEVANT"s);
     ASSERT_EQUAL_HINT(found_docs[0].id, 2, "Document's ID must be equals 2"s);
+    const auto found_docs2 = server.FindTopDocuments("ухоженный скворец"s, DocumentStatus::BANNED);
+    ASSERT_EQUAL_HINT(found_docs2.size(), 1u, "It must be finding only one document with status BANNED"s);
+    ASSERT_EQUAL_HINT(found_docs2[0].id, 3, "Document's ID must be equals 3"s);
+    const auto found_docs3 = server.FindTopDocuments("красивый кот"s, DocumentStatus::ACTUAL);
+    ASSERT_EQUAL_HINT(found_docs3.size(), 2u, "It must be finding two documents with status ACTUAL"s);
+    ASSERT_EQUAL_HINT(found_docs3[0].id, 1, "Document's ID must be equals 1"s);
+    ASSERT_EQUAL_HINT(found_docs3[1].id, 0, "Document's ID must be equals 0"s);
 }
 
-void TestCalculateRelevanceDocument() {
+void TestCalculateDocumentRelevance() {
     SearchServer server;
     server.SetStopWords("и в на"s);
     server.AddDocument(0, "белый кот и модный ошейник"s,                DocumentStatus::ACTUAL, {8, -3});
@@ -431,9 +438,11 @@ void TestCalculateRelevanceDocument() {
     server.AddDocument(2, "ухоженный кот выразительные глаза"s,         DocumentStatus::IRRELEVANT, {5, -12, 2, 1});
     server.AddDocument(3, "ухоженный скворец евгений"s,                 DocumentStatus::BANNED, {9});
     const auto found_docs = server.FindTopDocuments("кот"s);
-    ASSERT_EQUAL(found_docs.size(), 2);
-    ASSERT((found_docs[0].relevance - 0.095894) < 1e-6);
-    ASSERT((found_docs[1].relevance - 0.0719205) < 1e-6);
+    ASSERT_EQUAL(found_docs.size(), 2u);
+    //ASSERT((found_docs[0].relevance - 0.095894) < 1e-6);
+    //ASSERT((found_docs[1].relevance - 0.0719205) < 1e-6);
+    ASSERT((found_docs[0].relevance - (log(server.GetDocumentCount() * 1.0 / 3) * (2.0 / 6))) < 1e-6);
+    ASSERT((found_docs[1].relevance - (log(server.GetDocumentCount() * 1.0 / 3) * (1.0 / 4))) < 1e-6);
 }
 
 
@@ -444,11 +453,11 @@ void TestSearchServer() {
     RUN_TEST(TestAddingDocumentContent);
     RUN_TEST(TestExcludeMinusWordsFromAddedDocumentContent);
     RUN_TEST(TestMatchingDocumentContent);
-    RUN_TEST(TestSortingDocumentRelevance);
-    RUN_TEST(TestCalculateRatingDocument);
-    RUN_TEST(TestPredicate);
-    RUN_TEST(TestFindStatusDocument);
-    RUN_TEST(TestCalculateRelevanceDocument);
+    RUN_TEST(TestSortingDocumentByRelevance);
+    RUN_TEST(TestCalculateDocumentRating);
+    RUN_TEST(TestFindDocumentByPredicate);
+    RUN_TEST(TestFindDocumentByStatus);
+    RUN_TEST(TestCalculateDocumentRelevance);
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------
