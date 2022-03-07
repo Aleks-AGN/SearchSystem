@@ -1,4 +1,4 @@
-// search_server_sprint3_v1.cpp
+// search_server_sprint3_v2.cpp
 
 #include <algorithm>
 #include <cmath>
@@ -85,8 +85,8 @@ public:
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words))
     {
-        for (auto word : stop_words_) {
-            if (!IsValidWord(word)) throw invalid_argument(""s);
+        if (!std::all_of(stop_words_.begin(), stop_words_.end(), [](string word) { return IsValidWord(word); })) {
+            throw invalid_argument("Недопустимый символ в стоп-слове"s);
         }
     }
 
@@ -97,7 +97,7 @@ public:
 
     void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
         if ((document_id < 0) || (documents_.count(document_id) > 0)) {
-            throw invalid_argument(""s);
+            throw invalid_argument("Недопустимый идентификатор документа"s);
         }
         
         const vector<string> words = SplitIntoWordsNoStop(document);
@@ -151,7 +151,7 @@ public:
         if (index >= 0 && index < GetDocumentCount()) {
             return document_ids_[index];
         }
-        throw out_of_range(""s);
+        throw out_of_range("Индекс переданного документа выходит за пределы допустимого диапазона"s);
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
@@ -207,7 +207,7 @@ private:
         
         for (const string& word : SplitIntoWords(text)) {
             if (!IsValidWord(word)) {
-                throw invalid_argument(""s);
+                throw invalid_argument("Недопустимый символ в тексте документа"s);
             }
             if (!IsStopWord(word)) {
                 words.push_back(word);
@@ -237,7 +237,7 @@ private:
     QueryWord ParseQueryWord(string text) const {
 
         if (text.empty()) {
-            throw invalid_argument(""s);
+            throw invalid_argument("Пустой поисковый запрос"s);
         }
         
         bool is_minus = false;
@@ -248,7 +248,7 @@ private:
         }
         
         if (text.empty() || text[0] == '-' || !IsValidWord(text)) {
-            throw invalid_argument(""s);
+            throw invalid_argument("Некорректный поисковый запрос"s);
         }
 
         return {text, is_minus, IsStopWord(text)};
