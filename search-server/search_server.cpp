@@ -24,6 +24,33 @@ void SearchServer::AddDocument(int document_id, const std::string& document, Doc
     document_ids_.push_back(document_id);
 }
 
+void SearchServer::RemoveDocument(int document_id) {
+    
+    auto it = find(document_ids_.begin(), document_ids_.end(), document_id);
+
+    if (it == document_ids_.end()) {
+        using namespace std::literals;
+        std::cout << "Document id = "s << document_id << " doesn't exist." << std::endl;
+        return;
+    }  
+    
+    std::vector<std::string> words_to_delete;
+    for (auto& [key, value] : word_to_document_freqs_) {
+        value.erase(document_id);
+        if (value.empty()) {
+            words_to_delete.push_back(key);
+        }
+    }
+
+    for (auto& word : words_to_delete) {
+        word_to_document_freqs_.erase(word);
+    }
+
+    documents_.erase(document_id);
+
+    document_ids_.erase(it);
+}
+
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, DocumentStatus status) const {
     return FindTopDocuments(raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
         return document_status == status;
@@ -38,8 +65,12 @@ int SearchServer::GetDocumentCount() const {
     return documents_.size();
 }
 
-int SearchServer::GetDocumentId(int index) const {
-    return document_ids_.at(index);
+std::vector<int>::const_iterator SearchServer::begin() const {
+    return document_ids_.begin();
+}
+
+std::vector<int>::const_iterator SearchServer::end() const {
+    return document_ids_.end();
 }
 
 std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument(const std::string& raw_query, int document_id) const {
@@ -64,6 +95,21 @@ std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument
         }
     }
     return {matched_words, documents_.at(document_id).status};
+}
+
+const std::map<std::string, double>& SearchServer::GetWordFrequencies(int document_id) const {
+    static std::map<std::string, double> word_frequencies;
+
+    word_frequencies.clear();
+
+    for (const auto& [word, document_freqs] : word_to_document_freqs_) {
+        auto iterator = document_freqs.find(document_id);
+        if (iterator != document_freqs.end()) {
+            word_frequencies[word] = iterator -> second;
+        }
+    }
+
+    return word_frequencies;
 }
 
 bool SearchServer::IsStopWord(const std::string& word) const {
