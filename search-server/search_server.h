@@ -47,7 +47,7 @@ private:
     std::map<std::string, std::map<int, double>> word_to_document_freqs_;
     std::map<int, DocumentData> documents_;
     std::vector<int> document_ids_;
-
+ 
     bool IsStopWord(const std::string& word) const;
 
     static bool IsValidWord(const std::string& word);
@@ -91,12 +91,15 @@ SearchServer::SearchServer(const StringContainer& stop_words)
 
 template <typename DocumentPredicate>
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, DocumentPredicate document_predicate) const {
+    
     const auto query = ParseQuery(raw_query);
 
     auto matched_documents = FindAllDocuments(query, document_predicate);
 
     sort(matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs) {
-        if (std::abs(lhs.relevance - rhs.relevance) < 1e-6) {
+        const double DBL_EPSILON = 1e-6;
+        
+        if (std::abs(lhs.relevance - rhs.relevance) < DBL_EPSILON) {
             return lhs.rating > rhs.rating;
         } else {
             return lhs.relevance > rhs.relevance;
