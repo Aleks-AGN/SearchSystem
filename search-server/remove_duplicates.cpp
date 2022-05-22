@@ -16,7 +16,7 @@ void RemoveDuplicates(SearchServer& search_server) {
         auto word_freq1 = search_server.GetWordFrequencies(*it1);
         std::set<std::string> words1;
         for (const auto& [key, _]: word_freq1) {
-            words1.insert(key); 
+            words1.insert(std::string(key)); 
         }
         
         auto it2_begin = it1;
@@ -32,7 +32,7 @@ void RemoveDuplicates(SearchServer& search_server) {
 
                 std::set<std::string> words2;
                 for (const auto& [key, _]: word_freq2) {
-                    words2.insert(key); 
+                    words2.insert(std::string(key)); 
                 }
 
                 if (words1 == words2) {

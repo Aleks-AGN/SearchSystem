@@ -5,6 +5,7 @@
 #include "read_input_functions.h"
 #include "paginator.h"
 #include "request_queue.h"
+#include "process_queries.h"
 #include "log_duration.h"
 
 //using namespace std;
@@ -42,7 +43,13 @@ void MatchDocuments(const SearchServer& search_server, const std::string& query)
         
         for (const int document_id : search_server) {
             const auto [words, status] = search_server.MatchDocument(query, document_id);
-            PrintMatchDocumentResult(document_id, words, status);
+            
+            std::vector<std::string> string_words(words.size());
+            std::transform(words.begin(), words.end(),
+            string_words.begin(), [](const std::string_view word) {return std::string(word);});
+            PrintMatchDocumentResult(document_id, string_words, status);
+
+            //PrintMatchDocumentResult(document_id, words, status);
         }
     } catch (const std::invalid_argument& e) {
         std::cout << "Ошибка матчинга документов на запрос "s << query << ": "s << e.std::logic_error::what() << std::endl;
@@ -122,7 +129,7 @@ void TestSearchServer2() {
 
     std::cout << "--- End The Test 2 of The SearchServer ---"s << std::endl << std::endl;
 }
-
+/*
 void TestSearchServer3() {
     using namespace std::literals;
 
@@ -184,4 +191,185 @@ void TestSearchServer3() {
     }
     
     std::cout << "--- End The Test 3 of The SearchServer ---"s << std::endl << std::endl;
+}*/
+
+void TestSearchServer4() {
+    using namespace std::literals;
+
+    std::cout << std::endl << "--- Start The Test 4 of The SearchServer ---"s << std::endl;
+
+    SearchServer search_server("and with"s);
+
+    int id = 0;
+
+    for (const std::string& text : {
+            "funny pet and nasty rat"s,
+            "funny pet with curly hair"s,
+            "funny pet and not very nasty rat"s,
+            "pet with rat and rat and rat"s,
+            "nasty rat with curly hair"s, }) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, {1, 2});
+    }
+
+    const std::vector<std::string> queries = {
+        "nasty rat -not"s,
+        "not very funny nasty pet"s,
+        "curly hair"s
+    };
+
+    id = 0;
+
+    for (const auto& documents : ProcessQueries(search_server, queries)) {
+        std::cout << documents.size() << " documents for query ["s << queries[id++] << "]"s << std::endl;
+    }
+
+    std::cout << "--- End The Test 4 of The SearchServer ---"s << std::endl << std::endl;
+}
+
+void TestSearchServer5() {
+    using namespace std::literals;
+
+    std::cout << std::endl << "--- Start The Test 5 of The SearchServer ---"s << std::endl;
+
+    SearchServer search_server("and with"s);
+
+    int id = 0;
+
+    for (const std::string& text : {
+            "funny pet and nasty rat"s,
+            "funny pet with curly hair"s,
+            "funny pet and not very nasty rat"s,
+            "pet with rat and rat and rat"s,
+            "nasty rat with curly hair"s, }) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, {1, 2});
+    }
+
+    const std::vector<std::string> queries = {
+        "nasty rat -not"s,
+        "not very funny nasty pet"s,
+        "curly hair"s
+    };
+
+    for (const Document& document : ProcessQueriesJoined(search_server, queries)) {
+        std::cout << "Document "s << document.id << " matched with relevance "s << document.relevance << std::endl;
+    }
+
+    std::cout << "--- End The Test 5 of The SearchServer ---"s << std::endl << std::endl;
+}
+
+void TestSearchServer6() {
+    using namespace std::literals;
+
+    std::cout << std::endl << "--- Start The Test 6 of The SearchServer ---"s << std::endl;
+
+    SearchServer search_server("and with"s);
+
+    int id = 0;
+
+    for (const std::string& text : {
+            "funny pet and nasty rat"s,
+            "funny pet with curly hair"s,
+            "funny pet and not very nasty rat"s,
+            "pet with rat and rat and rat"s,
+            "nasty rat with curly hair"s, }) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, {1, 2});
+    }
+
+    const std::string query = "curly and funny"s;
+
+    auto report = [&search_server, &query] {
+        std::cout << search_server.GetDocumentCount() << " documents total, "s
+            << search_server.FindTopDocuments(query).size() << " documents for query ["s << query << "]"s << std::endl;
+    };
+
+    report();
+    // однопоточная версия
+    search_server.RemoveDocument(5);
+    report();
+    // однопоточная версия
+    search_server.RemoveDocument(std::execution::seq, 1);
+    report();
+    // многопоточная версия
+    search_server.RemoveDocument(std::execution::par, 2);
+    report();
+
+    std::cout << "--- End The Test 6 of The SearchServer ---"s << std::endl << std::endl;
+}
+
+void TestSearchServer7() {
+    using namespace std::literals;
+
+    std::cout << std::endl << "--- Start The Test 7 of The SearchServer ---"s << std::endl;
+
+    SearchServer search_server("and with"s);
+
+    int id = 0;
+
+    for (const std::string& text : {
+            "funny pet and nasty rat"s,
+            "funny pet with curly hair"s,
+            "funny pet and not very nasty rat"s,
+            "pet with rat and rat and rat"s,
+            "nasty rat with curly hair"s, }) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, {1, 2});
+    }
+
+    const std::string query = "curly and funny -not"s;
+
+    {
+        const auto [words, status] = search_server.MatchDocument(query, 1);
+        std::cout << words.size() << " words for document 1"s << std::endl;
+        // 1 words for document 1
+    }
+
+    {
+        const auto [words, status] = search_server.MatchDocument(std::execution::seq, query, 2);
+        std::cout << words.size() << " words for document 2"s << std::endl;
+        // 2 words for document 2
+    }
+
+    {
+        const auto [words, status] = search_server.MatchDocument(std::execution::par, query, 3);
+        std::cout << words.size() << " words for document 3"s << std::endl;
+        // 0 words for document 3
+    }
+
+    std::cout << "--- End The Test 7 of The SearchServer ---"s << std::endl << std::endl;
+}
+
+void TestSearchServer8() {
+    using namespace std::literals;
+
+    std::cout << std::endl << "--- Start The Test 8 of The SearchServer ---"s << std::endl;
+
+    SearchServer search_server("and with"s);
+
+    int id = 0;
+
+    for (const std::string& text : {
+            "white cat and yellow hat"s,
+            "curly cat curly tail"s,
+            "nasty dog with big eyes"s,
+            "nasty pigeon john"s, }) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, {1, 2});
+    }
+
+    std::cout << "ACTUAL by default:"s << std::endl;
+    // последовательная версия
+    for (const Document& document : search_server.FindTopDocuments("curly nasty cat"s)) {
+        PrintDocument(document);
+    }
+    std::cout << "BANNED:"s << std::endl;
+    // последовательная версия
+    for (const Document& document : search_server.FindTopDocuments(std::execution::seq, "curly nasty cat"s, DocumentStatus::BANNED)) {
+        PrintDocument(document);
+    }
+
+    std::cout << "Even ids:"s << std::endl;
+    // параллельная версия
+    for (const Document& document : search_server.FindTopDocuments(std::execution::par, "curly nasty cat"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; })) {
+        PrintDocument(document);
+    }
+
+    std::cout << "--- End The Test 8 of The SearchServer ---"s << std::endl << std::endl;
 }
